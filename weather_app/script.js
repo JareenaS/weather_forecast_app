@@ -124,12 +124,12 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
-    // Load recent cities from local storage and attach event listeners
+    // Handle recent city click
     citiesDropdown.addEventListener('click', (e) => {
         if (e.target.tagName === 'LI') {
             const city = e.target.textContent;
-            fetchWeatherData(city);
-            fetchExtendedForecast(city);
+            fetchWeatherData(city);  // Fetch weather for clicked city
+            fetchExtendedForecast(city);  // Fetch extended forecast for clicked city
         }
     });
 
