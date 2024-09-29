@@ -1,31 +1,51 @@
-const apiKey = 'e449571867fd033887629230e10e4d82'; // Replace with your API key
+const apiKey = 'e449571867fd033887629230e10e4d82'; // Replace with your OpenWeatherMap API key
 const searchBtn = document.getElementById('search-btn');
 const cityInput = document.getElementById('city-input');
 const weatherData = document.getElementById('weather-data');
 const errorMessage = document.getElementById('error-message');
+const recentCitiesDropdown = document.getElementById('recent-cities-dropdown');
 
+const recentCities = JSON.parse(localStorage.getItem('recentCities')) || [];
+
+// Populate dropdown with recent cities
+function populateDropdown() {
+    recentCitiesDropdown.innerHTML = '';
+    recentCities.forEach(city => {
+        const option = document.createElement('option');
+        option.value = city;
+        option.textContent = city;
+        recentCitiesDropdown.appendChild(option);
+    });
+    recentCitiesDropdown.classList.toggle('hidden', recentCities.length === 0);
+}
+
+// Event listener for search button
 searchBtn.addEventListener('click', () => {
     const cityName = cityInput.value.trim();
     if (cityName) {
         getWeatherData(cityName);
+        cityInput.value = ''; // Clear input field
     } else {
         errorMessage.textContent = "Please enter a city name.";
     }
 });
 
+// Fetch weather data from OpenWeatherMap
 async function getWeatherData(city) {
     try {
         const response = await fetch(`https://api.openweathermap.org/data/2.5/weather?q=${city}&appid=${apiKey}&units=metric`);
         if (!response.ok) throw new Error('City not found');
         const data = await response.json();
         displayWeather(data);
-        errorMessage.textContent = ""; // Clear error message
+        addCityToRecent(city);
+        errorMessage.textContent = ""; // Clear previous error message
     } catch (error) {
         errorMessage.textContent = error.message;
-        weatherData.innerHTML = ""; // Clear previous data
+        weatherData.innerHTML = ""; // Clear previous weather data
     }
 }
 
+// Display current weather
 function displayWeather(data) {
     const { main, weather, wind, name } = data;
     weatherData.innerHTML = `
@@ -36,39 +56,14 @@ function displayWeather(data) {
         <p>Condition: ${weather[0].description}</p>
         <img src="http://openweathermap.org/img/wn/${weather[0].icon}.png" alt="${weather[0].description}">
     `;
-}
-const recentCities = JSON.parse(localStorage.getItem('recentCities')) || [];
-const recentCitiesDropdown = document.createElement('select');
-recentCitiesDropdown.id = 'recent-cities-dropdown';
-recentCitiesDropdown.className = 'border rounded p-2 mt-2 w-full';
-document.body.appendChild(recentCitiesDropdown);
-
-recentCities.forEach(city => {
-    const option = document.createElement('option');
-    option.value = city;
-    option.textContent = city;
-    recentCitiesDropdown.appendChild(option);
-});
-
-recentCitiesDropdown.addEventListener('change', (e) => {
-    getWeatherData(e.target.value);
-});
-
-function addCityToRecent(city) {
-    if (!recentCities.includes(city)) {
-        recentCities.push(city);
-        localStorage.setItem('recentCities', JSON.stringify(recentCities));
-    }
+    getWeatherForecast(name); // Fetch extended forecast for this city
 }
 
-async function getWeatherData(city) {
-    // existing code...
-    addCityToRecent(city);
-}
+// Fetch extended forecast
 async function getWeatherForecast(city) {
     try {
         const response = await fetch(`https://api.openweathermap.org/data/2.5/forecast?q=${city}&appid=${apiKey}&units=metric`);
-        if (!response.ok) throw new Error('City not found');
+        if (!response.ok) throw new Error('Could not fetch extended forecast');
         const data = await response.json();
         displayExtendedForecast(data);
     } catch (error) {
@@ -76,10 +71,11 @@ async function getWeatherForecast(city) {
     }
 }
 
+// Display extended forecast
 function displayExtendedForecast(data) {
     const forecastData = data.list.slice(0, 5).map(item => {
         return `
-            <div class="border rounded p-2">
+            <div class="border rounded p-2 mt-2">
                 <p>${new Date(item.dt * 1000).toLocaleDateString()}</p>
                 <p>Temp: ${item.main.temp} °C</p>
                 <p>Humidity: ${item.main.humidity}%</p>
@@ -90,3 +86,21 @@ function displayExtendedForecast(data) {
     }).join('');
     weatherData.innerHTML += `<div class="mt-4">${forecastData}</div>`;
 }
+
+// Add city to recent searches
+function addCityToRecent(city) {
+    if (!recentCities.includes(city)) {
+        recentCities.push(city);
+        localStorage.setItem('recentCities', JSON.stringify(recentCities));
+        populateDropdown();
+    }
+}
+
+// Event listener for recent cities dropdown
+recentCitiesDropdown.addEventListener('change', (e) => {
+    const selectedCity = e.target.value;
+    getWeatherData(selectedCity);
+});
+
+// Initialize dropdown
+populateDropdown();
